@@ -30,22 +30,43 @@ type Data struct {
 	totalWords int
 }
 
+/*
+	You can add your custom Data[Type]
+	to get text in your own way
+*/
+
 // DataAPI ...
 type DataAPI struct {
 	Data
 	urlAPI string
 }
 
-func main() {
-	apidata := newDataAPI("https://baconipsum.com/api/?type=all-meat&paras=3")
+// DataFile ...
+type DataFile struct {
+	Data
+	filename string
+}
 
+func main() {
+	/*
+		You can change a `paras` parameter.
+		He is responsible for the number of paragraphs in the text.
+	*/
+	apidata := newDataAPI("https://baconipsum.com/api/?type=all-meat&paras=3")
 	fmt.Println(apidata)
 
+	/*
+		A file with this name should be in the same folder
+		with the program and run from the directory of the program itself
+		(ex. - `go run main.go`)
+	*/
+	filedata := newDataFile("text.txt")
+	fmt.Println(filedata)
 }
 
 func (d *DataAPI) String() string {
 	str := "\n"
-	text(d)
+	str += fmt.Sprintf("\tRandom text from API\n\n")
 	//str += fmt.Sprintf("Source text: %s\n\n", text(d))
 	str += fmt.Sprintf("Word count: %d\n\n", totalWords(d))
 	str += fmt.Sprintf("Longest sentence: %s\n\n", longestSentence(d))
@@ -56,19 +77,17 @@ func (d *DataAPI) String() string {
 	return str
 }
 
-/*
-Reads a file
-*/
-func readDataFromFile(filename string) string {
-	data, err := ioutil.ReadFile(filename)
-	// Если во время считывания файла произошла ошибка
-	// выводим ее
-	if err != nil {
-		fmt.Println(err)
+func (d *DataFile) String() string {
+	str := "\n"
+	str += fmt.Sprintf("\tText from FILE\n\n")
+	//str += fmt.Sprintf("Source text: %s\n\n", text(d))
+	str += fmt.Sprintf("Word count: %d\n\n", totalWords(d))
+	str += fmt.Sprintf("Longest sentence: %s\n\n", longestSentence(d))
+	str += fmt.Sprintf("Top words:\n")
+	for pos, word := range topWords(d, TopPositions) {
+		str += fmt.Sprintf("%d - %s\n", pos+1, word)
 	}
-	// Если чтение данных прошло успено
-	// выводим их в консоль
-	return string(data)
+	return str
 }
 
 func (d *Data) sortWordsMap(positions int) []string {
@@ -117,7 +136,7 @@ func (d *Data) countSentences() []string {
 	if len(d.sentences) > 0 {
 		return d.sentences
 	}
-	exploedSentences := func(c rune) bool { return c == '.' }
+	exploedSentences := func(c rune) bool { return c == '.' || c == '!' || c == '?' }
 	for _, sent := range strings.FieldsFunc(d.text, exploedSentences) {
 		d.sentences = append(d.sentences, strings.TrimSpace(sent))
 	}
@@ -160,6 +179,20 @@ func totalWords(s textSeeder) int {
 	return s.getTotalWords()
 }
 
+/*
+Reads a file
+*/
+func (d *DataFile) getText() string {
+	data, err := ioutil.ReadFile(d.filename)
+	// Если во время считывания файла произошла ошибка
+	// выводим ее
+	if err != nil {
+		fmt.Println(err)
+	}
+	d.text = string(data)
+	return d.text
+}
+
 func (d *DataAPI) getText() string {
 	if len(d.text) > 0 {
 		return d.text
@@ -169,12 +202,7 @@ func (d *DataAPI) getText() string {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	//timeout := time.Duration(1 * time.Second)
-	client := http.Client{
-		//Timeout: timeout,
-	}
-
+	client := http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
 		log.Fatalln(err)
@@ -187,7 +215,14 @@ func (d *DataAPI) getText() string {
 	return d.text
 }
 
+func newDataFile(file string) *DataFile {
+	d := DataFile{filename: file}
+	d.getText()
+	return &d
+}
+
 func newDataAPI(url string) *DataAPI {
 	d := DataAPI{urlAPI: url}
+	d.getText()
 	return &d
 }
